@@ -4,16 +4,16 @@ import {
   getAllTransactions,
   getTransactionById,
   cancelTransaction,
-  exampleController,
+  
 } from '../controllers/transactionController.js';
-
+import { validateTransaction } from '../middlewares/validateTransaction.js';
 const router = express.Router();
 
 
-router.post('/', createTransaction);
+router.post('/', validateTransaction, createTransaction);
 router.get('/', getAllTransactions);
 router.get('/:id', getTransactionById);
 router.patch('/:id/cancel', cancelTransaction);
-router.post('/example', exampleController);
+
 
 export default router;

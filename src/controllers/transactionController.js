@@ -8,24 +8,19 @@ import { ErrorHandler } from '../utils/errorHandler.js';
  */
 export const createTransaction = async (req, res, next) => {
   try {
-    const { accountNumber, type, amount, description } = req.body;
+    console.log('Request body:', req.body); // Ajouter ceci
+    const { sender, accountNumber, receiver, type, amount, description } = req.body;
 
     // Validation des données d'entrée
-    if (!accountNumber || !type || !amount) {
-      throw new ErrorHandler('Account number, type, and amount are required', 400);
-    }
-
-    if (!['credit', 'debit'].includes(type)) {
-      throw new ErrorHandler('Invalid transaction type', 400);
-    }
-
-    if (amount <= 0) {
-      throw new ErrorHandler('Amount must be greater than zero', 400);
+    if (!sender || !accountNumber || !receiver || !type || !amount) {
+      throw new ErrorHandler('Sender, account number, receiver, type, and amount are required', 400);
     }
 
     // Création de la transaction
     const transaction = new Transaction({
+      sender,
       accountNumber,
+      receiver,
       type,
       amount,
       description,
@@ -34,9 +29,11 @@ export const createTransaction = async (req, res, next) => {
     await transaction.save();
     res.status(201).json({ success: true, data: transaction });
   } catch (error) {
+    console.error('Error during transaction creation:', error); // Ajouter ceci
     next(error);
   }
 };
+
 
 /**
  * Obtenir toutes les transactions
@@ -45,8 +42,20 @@ export const createTransaction = async (req, res, next) => {
  */
 export const getAllTransactions = async (req, res, next) => {
   try {
-    const transactions = await Transaction.find();
-    res.status(200).json({ success: true, data: transactions });
+    const { page = 1, limit = 10 } = req.query;
+    const transactions = await Transaction.find()
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    const count = await Transaction.countDocuments();
+
+    res.status(200).json({
+      success: true,
+      totalPages: Math.ceil(count / limit),
+      currentPage: Number(page),
+      data: transactions,
+    });
   } catch (error) {
     next(error);
   }
@@ -72,6 +81,35 @@ export const getTransactionById = async (req, res, next) => {
 };
 
 /**
+ * Mettre à jour le statut d'une transaction
+ * @route PATCH /api/transactions/:id/status
+ * @access Public
+ */
+export const updateTransactionStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['pending', 'completed', 'failed'].includes(status)) {
+      throw new ErrorHandler('Invalid status', 400);
+    }
+
+    const transaction = await Transaction.findById(id);
+
+    if (!transaction) {
+      throw new ErrorHandler('Transaction not found', 404);
+    }
+
+    transaction.status = status;
+    await transaction.save();
+
+    res.status(200).json({ success: true, data: transaction });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Annuler une transaction
  * @route PATCH /api/transactions/:id/cancel
  * @access Public
@@ -80,7 +118,6 @@ export const cancelTransaction = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Recherche de la transaction
     const transaction = await Transaction.findById(id);
     if (!transaction) {
       throw new ErrorHandler('Transaction not found', 404);
@@ -90,9 +127,9 @@ export const cancelTransaction = async (req, res, next) => {
       throw new ErrorHandler('Transaction is already cancelled', 400);
     }
 
-    // Marquer la transaction comme annulée
     transaction.isCancelled = true;
     transaction.cancelledAt = new Date();
+    transaction.status = 'failed'; // Mettre à jour le statut lorsque la transaction est annulée
 
     await transaction.save();
 
@@ -101,25 +138,6 @@ export const cancelTransaction = async (req, res, next) => {
       message: 'Transaction cancelled successfully',
       data: transaction,
     });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Exemple de contrôleur avec gestion d'erreurs simulée
- * @route POST /api/example
- * @access Public
- */
-export const exampleController = (req, res, next) => {
-  try {
-    // Vérification de la donnée "data"
-    if (!req.body.data) {
-      throw new ErrorHandler('Data is required', 400);
-    }
-
-    // Retourner une réponse si tout va bien
-    res.status(200).json({ success: true, data: 'OK' });
   } catch (error) {
     next(error);
   }

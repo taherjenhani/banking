@@ -25,7 +25,6 @@ export class ErrorHandler extends Error {
       statusCode = 400;
       message = `Resource not found with id: ${err.value}`;
     }
-  
     // Réponse JSON structurée
     res.status(statusCode).json({
       success: false,

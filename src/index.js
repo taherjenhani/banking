@@ -6,6 +6,8 @@ import connectDB from './config/db.js';
 import transactionRoutes from './routes/transactionRoutes.js';
 import express from 'express';
 import { handleError } from './utils/errorHandler.js';
+import { notFound } from './middlewares/validateTransaction.js';
+
 
 dotenv.config();
 connectDB();
@@ -16,15 +18,14 @@ const app = express();
 app.use(cors());
 app.use(morgan('dev'));
 app.use(bodyParser.json());
-app.use(handleError);
+app.use(express.json()); // Placez ceci avant les routes
 
 // Routes
 app.use('/api/transactions', transactionRoutes);
 
 // Gestion des erreurs
-app.use((err, req, res, next) => {
-  res.status(500).json({ success: false, error: err.message });
-});
+app.use(notFound);
+app.use(handleError);
 
 // Démarrage du serveur
 const PORT = process.env.PORT || 5000;
